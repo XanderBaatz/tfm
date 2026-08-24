@@ -1,3 +1,11 @@
+# Old src
+src/kldm
+src/fm
+src/kfm_new
+
+# docs
+docs/theory
+
 # General
 .DS_Store
 .AppleDouble
