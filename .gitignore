@@ -1,7 +1,13 @@
-# Old src
-src/kldm
-src/fm
-src/kfm_new
+# other src
+src/*
+!src/kfm
+
+# misc
+/checkpoints
+/lightning_logs
+/wandb
+/outputs
+
 
 # docs
 docs/theory
