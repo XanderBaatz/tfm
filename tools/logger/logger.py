@@ -1,11 +1,9 @@
 import logging
 import sys
-from typing import TYPE_CHECKING
+
+from google.auth.credentials import Credentials
 
 from tools.logger.type import LogType
-
-if TYPE_CHECKING:
-    from google.auth.credentials import Credentials
 
 
 class Logger(logging.Logger):
@@ -46,9 +44,7 @@ class Logger(logging.Logger):
 
             from tools.logger import GoogleCloudFormatter
 
-            client = google.cloud.logging.Client(
-                project=project, credentials=credentials
-            )
+            client = google.cloud.logging.Client(project=project, credentials=credentials)
             client.setup_logging()
 
             formatter = GoogleCloudFormatter()

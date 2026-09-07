@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     )
 
     IS_LOCAL: bool = False
+    DATA_PATH: Path = Path("data")
 
     debug: bool = False
     title: str = "FastAPI"
