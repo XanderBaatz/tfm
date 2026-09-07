@@ -7,11 +7,11 @@ from torch import Tensor
 from torch_geometric.data import Batch
 
 from kfm.data.transforms import ContinuousIntervalAngles, ContinuousIntervalLengths
+from kfm.data_types import FlowState, GraphBatch
 from kfm.generator.generator import FlowGenerator
 from kfm.models.flow_module import FlowModule
 from kfm.models.wrapper import CSPANetWrapper
 from kfm.solver.kinetic_solver import KineticCrystalODESolver
-from kfm.types import FlowState, GraphBatch
 
 
 def structures_from_tensors(

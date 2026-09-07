@@ -4,8 +4,8 @@ import torch
 from flow_matching.solver import Solver
 from pymatgen.core import Structure
 
+from kfm.data_types import FlowState, GraphBatch
 from kfm.models.flow_module import FlowModule
-from kfm.types import FlowState, GraphBatch
 
 
 class FlowGenerator(ABC, torch.nn.Module):

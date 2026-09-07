@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from torch import Tensor, nn
 
-from kfm.types import FlowState
+from kfm.data_types import FlowState
 
 
 class VectorFieldModel(nn.Module, ABC):

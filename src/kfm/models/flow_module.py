@@ -4,10 +4,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from kfm.data_types import FlowState, GraphBatch
 from kfm.models.flow import MultiFlow
 from kfm.models.timestep_sampler import TimestepSampler, UniformTimestepSampler
 from kfm.models.vector_field import VectorFieldModel
-from kfm.types import FlowState, GraphBatch
 
 
 def relative_mse(pred, target, eps=1e-8):
