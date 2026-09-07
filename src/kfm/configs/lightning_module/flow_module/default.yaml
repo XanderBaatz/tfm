@@ -1,0 +1,3 @@
+_target_: kfm.models.kfm.KFM
+vector_field_model: cspanet
+multi_flow: csp

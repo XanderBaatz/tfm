@@ -1,0 +1,25 @@
+defaults:
+  - _self_
+  - manifold: torus
+  - data_module: mp_20
+  - metrics: csp
+  - trainer: default
+  - callbacks: default
+  - logger: wandb
+  - lightning_module: default
+  - lightning_module/flow_module: default
+  - lightning_module/flow_module/vector_field_model: cspanet
+  - lightning_module/flow_module/multi_flow: csp
+
+project: "kfm"
+dataset: "mp_20"
+tags:
+  - "mp_20"
+  - "csp"
+seed: 42
+train: true
+val_every_n_epoch: 25
+# Must be a multiple of `val_every_n_epoch` so a validation pass always coincides
+# with the (expensive, ODE-sampling-based) structure evaluation.
+struct_eval_every_n_epoch: 25
+monitor_metric: "val/match_rate"

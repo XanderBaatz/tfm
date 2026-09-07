@@ -1,0 +1,17 @@
+_target_: kfm.models.flow.MultiFlow
+flows:
+  kinetic:
+    _target_: kfm.models.flow.KineticFlow
+    prior:
+      _target_: kfm.distributions.prior.KineticPrior
+      zero_velocity: true
+    path:
+      _target_: kfm.path.kinetic.KineticTorusProbPath
+      manifold: ${manifold}
+
+  lattice:
+    _target_: kfm.models.flow.LatticeFlow
+    prior:
+      _target_: kfm.distributions.prior.IsotropicLatticePrior
+    path:
+      _target_: flow_matching.path.CondOTProbPath

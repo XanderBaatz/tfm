@@ -1,0 +1,6 @@
+_target_: lightning.Trainer
+accelerator: auto
+devices: 1
+max_epochs: -1
+check_val_every_n_epoch: ${val_every_n_epoch}
+num_sanity_val_steps: 0

@@ -1,0 +1,52 @@
+_target_: kfm.data.datamodule.CrystalDataModule
+
+train_dataset:
+  _target_: kfm.data.dataset.Dataset
+  path: ${oc.env:DATA_PATH}/mp_20/train.pt
+  transform:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - _target_: kfm.data.transforms.FullyConnectedGraph
+      - _target_: kfm.data.transforms.ContinuousIntervalLengths
+        lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_loc_scale.json
+      - _target_: kfm.data.transforms.ContinuousIntervalAngles
+        angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_angle_loc_scale.json
+      - _target_: kfm.data.transforms.ConcatFeatures
+        in_keys: ["lengths", "angles"]
+        out_key: "l"
+      - _target_: kfm.data.transforms.ToKineticCrystalState
+
+val_dataset:
+  _target_: kfm.data.dataset.Dataset
+  path: ${oc.env:DATA_PATH}/mp_20/val.pt
+  transform:
+    _target_: torch_geometric.transforms.Compose
+    transforms:
+      - _target_: kfm.data.transforms.FullyConnectedGraph
+      - _target_: kfm.data.transforms.ContinuousIntervalLengths
+        lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_loc_scale.json
+      - _target_: kfm.data.transforms.ContinuousIntervalAngles
+        angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_angle_loc_scale.json
+      - _target_: kfm.data.transforms.ConcatFeatures
+        in_keys: ["lengths", "angles"]
+        out_key: "l"
+      - _target_: kfm.data.transforms.ToKineticCrystalState
+
+test_dataset: null
+
+# Use a random subset for faster validation/debugging. `null` uses the full split;
+# an int is treated as a sample count, a float in (0, 1] as a fraction of the split.
+num_train_subset: null
+num_val_subset: 1024
+num_test_subset: null
+subset_seed: ${seed}
+
+batch_size:
+  train: 256
+  val: 256
+  test: 256
+
+num_workers:
+  train: 0
+  val: 0
+  test: 0

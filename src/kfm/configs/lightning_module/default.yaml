@@ -1,0 +1,6 @@
+_target_: kfm.models.lightning_module.FlowLightningModule
+
+optimizer_partial:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 1e-3

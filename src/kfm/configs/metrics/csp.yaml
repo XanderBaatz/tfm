@@ -1,0 +1,4 @@
+_target_: kfm.metrics.csp.CSPMetric
+ltol: 0.3
+stol: 0.5
+angle_tol: 10.0

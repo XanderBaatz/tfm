@@ -1,0 +1,2 @@
+_target_: kfm.utils.manifolds.torus.UnitFlatTorus
+scale: 1.0

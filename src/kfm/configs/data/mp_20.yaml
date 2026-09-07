@@ -1,0 +1,27 @@
+lengths_loc_scale: ${paths.data_dir}/mp_20/train_loc_scale.json
+angles_loc_scale: ${paths.data_dir}/mp_20/train_angle_loc_scale.json
+
+_target_: kfm.data.datamodule.DataModule
+train_path: ${paths.data_dir}/mp_20/train
+val_path: ${paths.data_dir}/mp_20/val
+test_path: ${paths.data_dir}/mp_20/test
+train_batch_size: 256
+val_batch_size: 256
+num_val_subset: 1024
+test_batch_size: 256
+num_workers: 1
+pin_memory: True
+transform:
+  _target_: torch_geometric.transforms.Compose
+  transforms:
+    - _target_: src.kfm.data.transforms.FullyConnectedGraph
+    - _target_: src.kfm.data.transforms.ContinuousIntervalLengths
+      lengths_loc_scale: ${lengths_loc_scale}
+    - _target_: src.kfm.data.transforms.ContinuousIntervalAngles
+      angles_loc_scale: ${angles_loc_scale}
+    - _target_: src.kfm.data.transforms.ConcatFeatures
+      in_keys:
+        - "lengths"
+        - "angles"
+      out_key: "l"
+    - _target_: src.kfm.data.ToKineticCrystalState

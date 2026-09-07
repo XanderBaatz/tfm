@@ -1,0 +1,11 @@
+_target_: kfm.nn.arch.CSPANet
+hidden_dim: 512
+time_dim: 256
+num_layers: 6
+h_dim: 100
+num_freqs: 128
+ln: true
+pred_dv: true
+pred_dl: true
+zero_cog: true
+manifold: ${manifold}

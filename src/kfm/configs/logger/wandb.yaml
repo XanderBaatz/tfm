@@ -1,0 +1,8 @@
+wandb:
+  _target_: lightning.pytorch.loggers.WandbLogger
+  offline: False
+  project: ${project}
+  prefix: ""
+  group: ""
+  tags: ${tags}
+  job_type: "train"

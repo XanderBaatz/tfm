@@ -1,0 +1,5 @@
+defaults:
+  - learning_rate_monitor
+  - structure_evaluator
+  - model_checkpoint
+  - _self_
