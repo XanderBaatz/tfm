@@ -1,6 +1,9 @@
 _target_: kfm.models.lightning_module.FlowLightningModule
 
 optimizer_partial:
-  _target_: torch.optim.Adam
+  _target_: torch.optim.AdamW
   _partial_: true
-  lr: 1e-3
+  lr: ${lr}
+  amsgrad: true
+  foreach: true
+  weight_decay: 1e-12

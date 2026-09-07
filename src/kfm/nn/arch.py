@@ -173,11 +173,12 @@ class CSPANet(VectorFieldModel):
         # Output Head 2: Lattice time derivative dL/dt \in \mathbb{R}^6
         self.pred_dl = pred_dl
         if pred_dl:
-            self.out_dl = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                self.act_fn,
-                nn.Linear(hidden_dim, 6, bias=False),
-            )
+            # self.out_dl = nn.Sequential(
+            #    nn.Linear(hidden_dim, hidden_dim),
+            #    self.act_fn,
+            #    nn.Linear(hidden_dim, 6, bias=False),
+            # )
+            self.out_dl = nn.Linear(hidden_dim, 6, bias=False)
 
         self.ln = ln
         self.smooth = smooth

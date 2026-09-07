@@ -18,6 +18,7 @@ tags:
   - "csp"
 seed: 42
 train: true
+lr: 1e-3
 val_every_n_epoch: 25
 # Must be a multiple of `val_every_n_epoch` so a validation pass always coincides
 # with the (expensive, ODE-sampling-based) structure evaluation.
