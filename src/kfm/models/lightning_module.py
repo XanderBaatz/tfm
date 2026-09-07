@@ -104,7 +104,7 @@ class FlowLightningModule(L.LightningModule):
         batch_size = getattr(batch, "num_graphs", 1)
 
         self.log(
-            f"loss_{step_type}",
+            f"{step_type}/loss",
             loss,
             on_step=train,
             on_epoch=True,
@@ -117,7 +117,7 @@ class FlowLightningModule(L.LightningModule):
             if key == "total_loss":
                 continue
             self.log(
-                f"{key}_{step_type}",
+                f"{step_type}/{key}",
                 value,
                 on_step=train,
                 on_epoch=True,
