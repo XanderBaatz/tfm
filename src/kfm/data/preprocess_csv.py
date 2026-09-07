@@ -1,4 +1,4 @@
-# # Originally from: https://github.com/frcnt/kldm/blob/main/src_kldm/data/dataset.py
+# Originally from: https://github.com/frcnt/kldm/blob/main/src_kldm/data/dataset.py
 
 """Preprocess mp_20 CSV splits into PyG .pt files for flow matching.
 
@@ -83,6 +83,42 @@ def compute_len_distribution(num_atoms_list: list[int]) -> np.ndarray:
     return counts
 
 
+def compute_angle_loc_scale(angles_list: list[np.ndarray]) -> tuple[list[float], list[float]]:
+    """Per-component (alpha, beta, gamma) loc/scale for tan(angle - pi/2),
+    fit the same way lengths_loc_scale is -- trimmed mean/std over the
+    inner 95%, per component. Unlike lengths, this is *not* binned by
+    num_atoms: cell volume scales directly with atom count, but angle is
+    governed by crystal symmetry class, which isn't tied to n the same way.
+    """
+    angles_rad = np.radians(np.array(angles_list))  # [N, 3]
+    tan_angles = np.tan(angles_rad - np.pi / 2.0)  # [N, 3]
+    tan_sorted = np.sort(tan_angles, axis=0)  # per-component order stats
+    idx = int(len(tan_sorted) * 0.025)
+    trimmed = tan_sorted[idx : max(idx + 1, len(tan_sorted) - idx)]
+    loc = np.mean(trimmed, axis=0)
+    scale = np.std(trimmed, axis=0)
+    scale = np.where(scale == 0, 1.0, scale)
+    return loc.tolist(), scale.tolist()
+
+
+def compute_angle_loc_scale_per_n(
+    angles_lst: list[np.ndarray],
+) -> tuple[list[float], list[float]]:
+    """Per-component (alpha, beta, gamma) loc/scale for tan(angle - pi/2) for a given atom count bucket."""
+    angles_rad = np.radians(np.array(angles_lst))
+    tan_angles = np.tan(angles_rad - np.pi / 2.0)
+    tan_sorted = np.sort(tan_angles, axis=0)
+
+    idx = int(len(tan_sorted) * 0.025)
+    trimmed = tan_sorted[idx : max(idx + 1, len(tan_sorted) - idx)]
+
+    loc = np.mean(trimmed, axis=0)
+    scale = np.std(trimmed, axis=0)
+    scale = np.where(scale == 0, 1.0, scale)
+
+    return loc.tolist(), scale.tolist()
+
+
 def preprocess_csv(
     csv_folder: str | Path = "data/mp_20",
     splits: Iterable[str] = ("train", "val", "test"),
@@ -100,6 +136,7 @@ def preprocess_csv(
         df = pd.read_csv(csv_path)
         data_list: list = []
         loc_scale_dct: dict[int, list[np.ndarray]] = {}
+        angles_dct: dict[int, list[np.ndarray]] = {}
         num_atoms_list: list[int] = []
 
         for i in tqdm(range(len(df)), desc=f"Preprocessing {split}"):
@@ -118,7 +155,9 @@ def preprocess_csv(
 
             if n not in loc_scale_dct:
                 loc_scale_dct[n] = []
+                angles_dct[n] = []
             loc_scale_dct[n].append(data["lengths"])
+            angles_dct[n].append(data["angles"])
 
             if fmt == "pyg":
                 item = Data(
@@ -150,6 +189,15 @@ def preprocess_csv(
         loc_scale_path = csv_folder / f"{split}_loc_scale.json"
         save_json(loc_scale, str(loc_scale_path), sort_keys=True)
         print(f"Saved length loc/scale → {loc_scale_path}")
+
+        # Per-num-atoms angle statistics
+        angle_loc_scale: dict[int, tuple[list, list]] = {}
+        for n, angles_lst in angles_dct.items():
+            angle_loc_scale[n] = compute_angle_loc_scale_per_n(angles_lst)
+
+        angle_loc_scale_path = csv_folder / f"{split}_angle_loc_scale.json"
+        save_json(angle_loc_scale, str(angle_loc_scale_path), sort_keys=True)
+        print(f"Saved angle loc/scale → {angle_loc_scale_path}")
 
         # Empirical num-atoms distribution
         if num_atoms_list:

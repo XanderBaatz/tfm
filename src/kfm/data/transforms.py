@@ -2,19 +2,16 @@
 
 import math
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from torch_geometric.data import Data
 from torch_geometric.data.datapipes import functional_transform
 from torch_geometric.transforms import BaseTransform
 from torch_geometric.utils import dense_to_sparse, one_hot
 
 from kfm.data.structures import KineticCrystalState
 from kfm.data.utils import read_json
-
-if TYPE_CHECKING:
-    from torch_geometric.data import Data
 
 
 @functional_transform("fully_connected_graph")
@@ -99,7 +96,7 @@ class ContinuousIntervalLengths(BaseTransform):
     def maybe_read_from_json(
         lengths_loc_scale: dict[int, tuple[list[float], list[float]]] | str | Path | None,
     ):
-        if isinstance(lengths_loc_scale, str) or isinstance(lengths_loc_scale, Path):
+        if isinstance(lengths_loc_scale, (str, Path)):
             print(f"Reading 'lengths_loc_scale' from '{lengths_loc_scale}'...")
             json_dict = read_json(lengths_loc_scale)
             json_dict = {int(k): json_dict[k] for k in json_dict}
@@ -120,16 +117,24 @@ class ContinuousIntervalAngles(BaseTransform):
         in_key: str = "angles",
         out_key: str | None = None,
         is_deg: bool = True,
-        angles_loc_scale: tuple[float, float] | None = None,
+        angles_loc_scale: (
+            dict[int, tuple[list[float], list[float]]]
+            | tuple[list[float], list[float]]
+            | tuple[float, float]
+            | str
+            | Path
+            | None
+        ) = None,
     ) -> None:
         self.in_key = in_key
         self.out_key = out_key
         self.is_deg = is_deg
-        self.angles_loc_scale = angles_loc_scale
+        self.angles_loc_scale = self.maybe_read_from_json(angles_loc_scale)
 
     def forward(self, data: Data) -> Data:
         if not hasattr(data, self.in_key):
-            raise ValueError(f"Data object must have '{self.in_key}' attribute!")
+            msg = f"Data object must have '{self.in_key}' attribute!"
+            raise ValueError(msg)
 
         value = getattr(data, self.in_key)
 
@@ -139,8 +144,17 @@ class ContinuousIntervalAngles(BaseTransform):
         new_value = torch.tan(value - torch.pi / 2.0)
 
         if self.angles_loc_scale:
-            loc, scale = self.angles_loc_scale
-            new_value = (new_value - loc) / scale
+            n = len(data.pos)
+            # Fetch per-num-atoms tuple, fallback to direct tuple if global fallback passed
+            loc_scale = (
+                self.angles_loc_scale.get(n) if isinstance(self.angles_loc_scale, dict) else self.angles_loc_scale
+            )
+
+            if loc_scale is not None:
+                loc, scale = loc_scale
+                loc_t = torch.as_tensor(loc, dtype=new_value.dtype, device=new_value.device)
+                scale_t = torch.as_tensor(scale, dtype=new_value.dtype, device=new_value.device)
+                new_value = (new_value - loc_t) / scale_t
 
         if self.out_key is None:
             setattr(data, self.in_key, new_value)
@@ -149,18 +163,36 @@ class ContinuousIntervalAngles(BaseTransform):
 
         return data
 
-    def invert_one(self, tan_angles: np.ndarray):
+    def invert_one(self, tan_angles: np.ndarray, n: int | None = None):
         if self.angles_loc_scale:
-            loc, scale = self.angles_loc_scale
+            if isinstance(self.angles_loc_scale, dict):
+                if n is None or n not in self.angles_loc_scale:
+                    raise ValueError(f"Atom count n={n} must be specified and present in angles_loc_scale.")
+                loc, scale = self.angles_loc_scale[n]
+            else:
+                loc, scale = self.angles_loc_scale
+
+            loc = np.asarray(loc)
+            scale = np.asarray(scale)
             tan_angles = tan_angles * scale + loc
 
         angles = np.arctan(tan_angles) + (math.pi / 2.0)
         if self.is_deg:
             angles = np.rad2deg(angles)
 
-        alpha, beta, gamma = angles
+        angles = np.squeeze(angles)
+        return float(angles[0]), float(angles[1]), float(angles[2])
 
-        return alpha, beta, gamma
+    @staticmethod
+    def maybe_read_from_json(angles_loc_scale):
+        if isinstance(angles_loc_scale, (str, Path)):
+            print(f"Reading 'angles_loc_scale' from '{angles_loc_scale}'...")
+            json_dict = read_json(angles_loc_scale)
+            # Convert string JSON keys ("5") to int keys (5) if structured per num_atoms
+            if isinstance(json_dict, dict) and "loc" not in json_dict:
+                return {int(k): json_dict[k] for k in json_dict}
+            if isinstance(json_dict, dict) and "loc" in json_dict:
+                return json_dict["loc"], json_dict["scale"]
 
 
 @functional_transform("one_hot")
@@ -222,6 +254,8 @@ class ToKineticCrystalState(BaseTransform):
         l = data.l
         h = data.h
         v = torch.zeros_like(pos)
+        lengths = data.lengths
+        angles = data.angles
 
         # Extract edge connectivity from data object
         edge_index = getattr(data, "edge_node_index", getattr(data, "edge_index", None))
@@ -231,5 +265,7 @@ class ToKineticCrystalState(BaseTransform):
             l=l,
             h=h,
             v=v,
+            lengths=lengths,
+            angles=angles,
             edge_index=edge_index,
         )

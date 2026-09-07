@@ -1,6 +1,10 @@
 # Originally from: https://github.com/frcnt/kldm/blob/main/src_kldm/data/dataset.py
 
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import Any
 
 import chemparse
 import numpy as np
@@ -14,18 +18,18 @@ from torch_geometric.io import fs
 class Dataset(torchdata.Dataset):
     def __init__(
         self,
-        path: str,
+        path: str | Path,
         transform: Callable | None = None,
     ) -> None:
         self.transform = transform
         self.data = self.load(path)
 
     @staticmethod
-    def load(path):
+    def load(path: str | Path) -> Any:
         return fs.torch_load(path)
 
-    def __getitem__(self, idx):
-        data = self.data[idx]
+    def __getitem__(self, index: int) -> Data:
+        data = self.data[index]
 
         if not isinstance(data, Data):  # the data was saved as a dict of numpy arrays
             data = Data(
@@ -39,7 +43,7 @@ class Dataset(torchdata.Dataset):
 
         return data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
 

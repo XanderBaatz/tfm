@@ -1,6 +1,7 @@
 # Taken from https://github.com/microsoft/mattergen/blob/main/mattergen/common/data/chemgraph.py
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+from __future__ import annotations
 
 import copy
 from typing import Any
