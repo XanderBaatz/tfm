@@ -4,7 +4,7 @@ time_dim: 256
 num_layers: 6
 h_dim: 100
 num_freqs: 128
-ln: true
+ln: ${layer_normalization}
 pred_dv: true
 pred_dl: true
 zero_cog: ${zero_cog}

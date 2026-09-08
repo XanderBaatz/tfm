@@ -20,8 +20,9 @@ seed: 42
 train: true
 lr: 1e-3
 zero_cog: true
-zero_velocity: true
-simplified_parameterization: true
+zero_velocity: false
+simplified_parameterization: false
+layer_normalization: true
 val_every_n_epoch: 25
 # Must be a multiple of `val_every_n_epoch` so a validation pass always coincides
 # with the (expensive, ODE-sampling-based) structure evaluation.

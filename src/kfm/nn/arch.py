@@ -1,9 +1,8 @@
-# Originally from: https://github.com/frcnt/kldm/blob/main/src_kldm/data/dataset.py
+# Originally from: https://github.com/frcnt/kldm/blob/main/src_kldm/nn/arch.py
 
 import torch
 from torch import Tensor, nn
-
-# from torch_scatter import scatter
+from torch.nn import Module
 from torch_geometric.utils import scatter
 
 from kfm.models.vector_field import VectorFieldModel
@@ -12,20 +11,28 @@ from kfm.nn.utils import scatter_center
 from kfm.utils.manifolds.torus import UnitFlatTorus
 
 
-class CSPALayer(nn.Module):
+class CSPALayer(Module):
+    """GNN Crystal Structure Prediction Acceleration (CSPA) layer.
+
+    Adapted from DiffCSP with modifications to support auxiliary velocity.
+    """
+
     def __init__(
         self,
-        dis_emb: nn.Module,
+        dis_emb: Module,
         hidden_dim: int = 128,
-        act_fn: nn.Module = nn.SiLU(),
+        *,
+        act_fn: Module | None = None,
         ln: bool = False,
-    ):
+    ) -> None:
+        """Initialize CSPALayer."""
         super().__init__()
         self.dis_emb = dis_emb
         self.dis_dim = dis_emb.dim
+        act_fn = nn.SiLU() if act_fn is None else act_fn
 
         # Input: h_i, h_j, l_edge (6), v_ij (dis_dim), pos_diff (dis_dim)
-        input_dim = hidden_dim * 2 + 2 * self.dis_dim + 6
+        input_dim = hidden_dim * 2 + 2 * self.dis_dim + 6  # hidden states + distance/velocity + lattice
 
         self.v_proj = nn.Linear(3, self.dis_dim)
 
@@ -35,12 +42,14 @@ class CSPALayer(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             act_fn,
         )
+
         self.node_mlp = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),
             act_fn,
             nn.Linear(hidden_dim, hidden_dim),
             act_fn,
         )
+
         self.ln = ln
         if self.ln:
             self.layer_norm = nn.LayerNorm(hidden_dim)
@@ -65,7 +74,8 @@ class CSPALayer(nn.Module):
         l_edge = lattices[edge_graph_index]
 
         edges_input = torch.cat([hi, hj, l_edge, vij, pos_diff_emb], dim=1)
-        return self.edge_mlp(edges_input)
+
+        return self.edge_mlp(edges_input)  # edge features
 
     def node_model(
         self,
@@ -130,10 +140,11 @@ class CSPANet(VectorFieldModel):
         num_freqs: int = 10,
         ln: bool = True,
         smooth: bool = False,
+        pred_h: bool = False,
         pred_dv: bool = True,
         pred_dl: bool = True,
         zero_cog: bool = True,
-        time_emb: nn.Module = None,
+        time_emb: Module = None,
         manifold: UnitFlatTorus = None,
     ):
         super().__init__()
@@ -218,7 +229,8 @@ class CSPANet(VectorFieldModel):
         node_features = self.atom_latent_emb(node_features)
 
         # 3. Compute minimal periodic torus displacement d \in [-0.5, 0.5)^3
-        pos_diff = self.manifold.logmap(pos[edge_node_index[0]], pos[edge_node_index[1]])
+        # pos_diff = self.manifold.logmap(pos[edge_node_index[0]], pos[edge_node_index[1]])
+        pos_diff = pos[edge_node_index[1]] - pos[edge_node_index[0]]
         edge_graph_index = node_index[edge_node_index[0]]
 
         # 4. Message Passing

@@ -98,21 +98,20 @@ class KineticFlow(Flow):
         t: torch.Tensor,
         node_index: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """Convert model outputs into acceleration fields u_{t,v} during ODE integration."""
-        if self.simplified:
-            # Reconstruct u_{t,v} = (6 - 12t) * \hat{d}
-            t_exp = t[node_index] if node_index is not None else t
-            if t_exp.ndim == 1:
-                t_exp = t_exp.unsqueeze(-1)
+        """Convert model predictions into velocity/acceleration ODE vector fields."""
+        t_exp = t[node_index] if node_index is not None else t
+        if t_exp.ndim == 1:
+            t_exp = t_exp.unsqueeze(-1)
 
-            acc = (6.0 - 12.0 * t_exp) * pred
-        else:
-            acc = pred
+        # Delegate parameterization mapping directly to the underlying path!
+        if hasattr(self.path, "reconstruct_acceleration"):
+            pred = self.path.reconstruct_acceleration(pred_target=pred, t=t_exp)
 
+        # Apply physical invariants (e.g. zero center of mass drift)
         if self.zero_cog and node_index is not None:
-            acc = scatter_center(acc, index=node_index)
+            pred = scatter_center(pred, index=node_index)
 
-        return acc
+        return pred
 
 
 class LatticeFlow(Flow):

@@ -5,7 +5,6 @@ from torch_geometric.data import Batch, Data
 
 from kfm.models.flow import MultiFlow
 from kfm.models.vector_field import VectorFieldModel
-from kfm.path.kinetic import KineticTorusProbPath
 
 
 class CSPANetWrapper(ModelWrapper):
@@ -60,9 +59,12 @@ class CSPANetWrapper(ModelWrapper):
             raise ValueError(msg)
 
         # 2. Format 0D/1D continuous time tensor
-        if t.dim() == 0:
-            num_graphs = getattr(batch, "num_graphs", int(node_index.max().item() + 1))
-            t = t.expand(num_graphs)
+        # if t.dim() == 0:
+        #    num_graphs = getattr(batch, "num_graphs", int(node_index.max().item() + 1))
+        #    t = t.expand(num_graphs)
+        if t.ndim == 0:
+            num_graphs = getattr(batch, "num_graphs", 1) if batch is not None else int(node_index.max().item() + 1)
+            t = t.unsqueeze(0).expand(num_graphs)
 
         # 3. Unpack states from solver dictionary
         pos_t = x["x"]
@@ -84,27 +86,15 @@ class CSPANetWrapper(ModelWrapper):
         dv_pred = net_out["dv"]
 
         # 1. Dynamically locate the Kinetic path module by class type
-        kinetic_flow = None
-        if self.multi_flow is not None:
-            # Check if multi_flow contains sub-flows (nn.ModuleDict / list / iterable)
-            flows = getattr(self.multi_flow, "flows", None)
-            if flows is not None:
-                # Iterate through dict values or sequence elements
-                flow_list = flows.values() if isinstance(flows, (dict, torch.nn.ModuleDict)) else flows
-                for flow in flow_list:
-                    if isinstance(flow, KineticTorusProbPath):
-                        kinetic_flow = flow
-                        break
-            elif isinstance(self.multi_flow, KineticTorusProbPath):
-                kinetic_flow = self.multi_flow
 
-        # 2. Reconstruct parameterization (e.g. d -> acceleration v-field if simplified)
-        if kinetic_flow is not None and hasattr(kinetic_flow, "construct_prediction"):
-            dv_pred = kinetic_flow.construct_prediction(
-                pred=dv_pred,
-                t=t,
-                node_index=node_index,
-            )
+        # Correctly extract KineticFlow instance to call construct_prediction
+        if self.multi_flow is not None:
+            flows = getattr(self.multi_flow, "flows", [self.multi_flow])
+            flow_list = flows.values() if isinstance(flows, (dict, torch.nn.ModuleDict)) else flows
+            for flow in flow_list:
+                if hasattr(flow, "construct_prediction"):
+                    dv_pred = flow.construct_prediction(pred=dv_pred, t=t, node_index=node_index)
+                    break
 
         # 5. Construct phase-space velocity field for ODE integration
         return {

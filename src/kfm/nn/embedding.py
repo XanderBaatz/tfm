@@ -19,7 +19,7 @@ class SinEmbedding(nn.Module):
         self.frequencies = 2 * math.pi * torch.arange(self.n_frequencies)
         self.dim = self.n_frequencies * 2 * self.n_space
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         emb = x.unsqueeze(-1) * self.frequencies[None, None, :].to(x.device)
         emb = emb.reshape(-1, self.n_frequencies * self.n_space)
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)

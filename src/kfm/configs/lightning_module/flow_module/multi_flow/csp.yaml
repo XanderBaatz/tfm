@@ -8,6 +8,7 @@ flows:
       zero_cog: ${zero_cog}
     path:
       _target_: kfm.path.kinetic.KineticTorusProbPath
+      #_target_: kfm.path.kinetic.StochasticKineticTorusProbPath
       manifold: ${manifold}
       simplified: ${simplified_parameterization}
     simplified: ${simplified_parameterization}
