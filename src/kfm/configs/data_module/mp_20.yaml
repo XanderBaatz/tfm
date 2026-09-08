@@ -10,7 +10,8 @@ train_dataset:
       - _target_: kfm.data.transforms.ContinuousIntervalLengths
         lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_loc_scale.json
       - _target_: kfm.data.transforms.ContinuousIntervalAngles
-        angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_angle_loc_scale.json
+        #angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_angle_loc_scale.json
+        angles_loc_scale: [0.0, 0.35]
       - _target_: kfm.data.transforms.ConcatFeatures
         in_keys: ["lengths", "angles"]
         out_key: "l"
@@ -24,9 +25,12 @@ val_dataset:
     transforms:
       - _target_: kfm.data.transforms.FullyConnectedGraph
       - _target_: kfm.data.transforms.ContinuousIntervalLengths
-        lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_loc_scale.json
+        #lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_loc_scale.json
+        lengths_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_loc_scale.json
       - _target_: kfm.data.transforms.ContinuousIntervalAngles
-        angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_angle_loc_scale.json
+        #angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/val_angle_loc_scale.json
+        #angles_loc_scale: ${oc.env:DATA_PATH}/mp_20/train_angle_loc_scale.json
+        angles_loc_scale: [0.0, 0.35]
       - _target_: kfm.data.transforms.ConcatFeatures
         in_keys: ["lengths", "angles"]
         out_key: "l"
