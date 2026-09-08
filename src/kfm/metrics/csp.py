@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.core import Structure
@@ -56,7 +58,13 @@ class CSPMetric(Metric):
                 self.rmses.append(float("inf"))
                 continue
 
-            rms_dist = self.matcher.get_rms_dist(p, t)
+            try:
+                # numerically degenerate lattices (near-collinear vectors, extreme lengths)
+                # can crash pymatgen/LAPACK's internal lattice reduction here
+                rms_dist = self.matcher.get_rms_dist(p, t)
+            except Exception as e:
+                warnings.warn(f"StructureMatcher failed to compare structures: {e}", stacklevel=2)
+                rms_dist = None
 
             if rms_dist is not None:
                 self.matches.append(True)
