@@ -6,6 +6,7 @@ from torch import nn
 from torch_geometric.data.batch import Batch, Data
 
 from kfm.distributions.prior import BasePrior
+from kfm.nn.utils import scatter_center
 
 
 class Flow(nn.Module, ABC):
@@ -42,10 +43,18 @@ class Flow(nn.Module, ABC):
 
 
 class KineticFlow(Flow):
-    """Flow for particle positions and velocities."""
+    """Flow for particle positions and velocities with simplified d-parameterization support."""
 
-    # def __init__(self, prior: BasePrior, path: ProbPath) -> None:
-    #    super().__init__(prior=prior, path=path)
+    def __init__(
+        self,
+        prior: BasePrior,
+        path: ProbPath,
+        simplified: bool = True,
+        zero_cog: bool = True,
+    ) -> None:
+        super().__init__(prior=prior, path=path)
+        self.simplified = simplified
+        self.zero_cog = zero_cog
 
     def sample_path(
         self,
@@ -57,7 +66,8 @@ class KineticFlow(Flow):
             state_0 = self.sample_prior(batch=batch)
 
         # Map graph-level t [B] -> node-level t [N] using PyG indexing
-        t_node = t[batch.batch] if hasattr(batch, "batch") and batch.batch is not None else t
+        node_index = batch.batch if hasattr(batch, "batch") and batch.batch is not None else None
+        t_node = t[node_index] if node_index is not None else t
 
         sample_k = self.path.sample(
             x_0=state_0["pos"],
@@ -67,9 +77,42 @@ class KineticFlow(Flow):
         )
 
         latents = {"pos": sample_k.x_t, "v": sample_k.v_t}
-        targets = {"dv": sample_k.dv_t}
+
+        if self.simplified:
+            # target is minimal displacement
+            target_d = sample_k.dx_t
+            if self.zero_cog and node_index is not None:
+                target_d = scatter_center(target_d, index=node_index)
+            targets = {"d": target_d}
+        else:
+            target_dv = sample_k.dv_t
+            if self.zero_cog and node_index is not None:
+                target_dv = scatter_center(target_dv, index=node_index)
+            targets = {"dv": target_dv}
 
         return latents, targets
+
+    def construct_prediction(
+        self,
+        pred: torch.Tensor,
+        t: torch.Tensor,
+        node_index: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Convert model outputs into acceleration fields u_{t,v} during ODE integration."""
+        if self.simplified:
+            # Reconstruct u_{t,v} = (6 - 12t) * \hat{d}
+            t_exp = t[node_index] if node_index is not None else t
+            if t_exp.ndim == 1:
+                t_exp = t_exp.unsqueeze(-1)
+
+            acc = (6.0 - 12.0 * t_exp) * pred
+        else:
+            acc = pred
+
+        if self.zero_cog and node_index is not None:
+            acc = scatter_center(acc, index=node_index)
+
+        return acc
 
 
 class LatticeFlow(Flow):

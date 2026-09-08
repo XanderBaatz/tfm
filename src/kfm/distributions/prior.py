@@ -4,6 +4,8 @@ import torch
 from torch import nn
 from torch_geometric.data import Batch, Data
 
+from kfm.nn.utils import scatter_center
+
 
 class BasePrior(nn.Module, ABC):
     """Abstract base class for field-specific prior distributions."""
@@ -16,22 +18,32 @@ class BasePrior(nn.Module, ABC):
 class KineticPrior(BasePrior):
     """Prior p_0(x, v) for particle positions and velocities."""
 
-    def __init__(self, sigma_v: float = 1.0, zero_velocity: bool = False) -> None:
+    def __init__(
+        self,
+        sigma_v: float = 1.0,
+        zero_velocity: bool = True,
+        zero_cog: bool = True,
+    ) -> None:
         super().__init__()
         self.sigma_v = sigma_v
         self.zero_velocity = zero_velocity
+        self.zero_cog = zero_cog
 
     def sample_like(self, batch: Batch | Data) -> dict[str, torch.Tensor]:
         device = batch.pos.device
+        num_nodes = batch.pos.shape[0]
 
         # x_0 ~ U([0,1)^3)
         pos_0 = torch.rand_like(batch.pos, device=device)
 
         if self.zero_velocity:
             # v_0 ~ N(0, 1)
-            v_0 = torch.zeros_like(batch.v, device=device)
+            v_0 = torch.zeros_like(batch.pos, device=device)
         else:
-            v_0 = torch.rand_like(batch.v, device=device) * self.sigma_v
+            v_0 = torch.randn((num_nodes, 3), device=device) * self.sigma_v
+            if self.zero_cog and hasattr(batch, "batch") and batch.batch is not None:
+                v_0 = scatter_center(v_0, index=batch.batch)
+            # v_0 = torch.rand_like(batch.pos, device=device) * self.sigma_v
 
         return {"pos": pos_0, "v": v_0}
 

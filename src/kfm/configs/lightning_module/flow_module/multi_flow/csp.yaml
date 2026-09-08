@@ -4,10 +4,14 @@ flows:
     _target_: kfm.models.flow.KineticFlow
     prior:
       _target_: kfm.distributions.prior.KineticPrior
-      zero_velocity: true
+      zero_velocity: ${zero_velocity}
+      zero_cog: ${zero_cog}
     path:
       _target_: kfm.path.kinetic.KineticTorusProbPath
       manifold: ${manifold}
+      simplified: ${simplified_parameterization}
+    simplified: ${simplified_parameterization}
+    zero_cog: ${zero_cog}
 
   lattice:
     _target_: kfm.models.flow.LatticeFlow

@@ -18,7 +18,8 @@ class KFM(FlowModule):
 
         # 1. Main MSE loss across fields (e.g., 'dv' / 'x', 'dl' / 'l')
         for key, target_val in targets.items():
-            field_loss = F.mse_loss(preds[key], target_val)
+            pred_key = "dv" if key == "d" else key  # FIXME: make this more general
+            field_loss = F.mse_loss(preds[pred_key], target_val)
             loss_dict[f"loss_{key}"] = field_loss.detach()
             total_loss += field_loss
 

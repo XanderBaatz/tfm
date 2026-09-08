@@ -20,8 +20,13 @@ class KineticTorusProbPath(ProbPath):
     The conditional target dx_t stored in PathSample corresponds to the target acceleration field u_{t, v}.
     """
 
-    def __init__(self, manifold: UnitFlatTorus = None) -> None:
+    def __init__(
+        self,
+        manifold: UnitFlatTorus = None,
+        simplified: bool = True,
+    ) -> None:
         self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
+        self.simplified = simplified
 
     def sample(
         self,
@@ -53,15 +58,17 @@ class KineticTorusProbPath(ProbPath):
         t2 = t_exp**2
         t3 = t_exp**3
 
-        # position path
-        omega_t = (3 * t2 - 2 * t3) * d + (t_exp - 2 * t2 + t3) * v_0
-        x_t = (x_0 + omega_t) % 1.0
+        if self.simplified:
+            # v_0 = 0 simplification
+            omega_t = (3 * t2 - 2 * t3) * d
+            v_t = (6 * t_exp - 6 * t2) * d  # velocity path
+            u_t_v = (6 - 12 * t_exp) * d  # target acceleration field
+        else:
+            omega_t = (3 * t2 - 2 * t3) * d + (t_exp - 2 * t2 + t3) * v_0
+            v_t = (6 * t_exp - 6 * t2) * d + (1 - 4 * t_exp + 3 * t2) * v_0  # velocity path
+            u_t_v = (6 - 12 * t_exp) * d + (-4 + 6 * t_exp) * v_0  # target acceleration field
 
-        # velocity path: \bm{v}_t = (6t - 6t^2)\bm{d} + (1 - 4t + 3t^2)\bm{v}_0
-        v_t = (6 * t_exp - 6 * t2) * d + (1 - 4 * t_exp + 3 * t2) * v_0
-
-        # target acceleration field: u_{t, \bm{v}} = (6 - 12t)\bm{d} + (-4 + 6t)\bm{v}_0
-        u_t_v = (6 - 12 * t_exp) * d + (-4 + 6 * t_exp) * v_0
+        x_t = self.manifold.expmap(x=x_0, u=omega_t)
 
         return KineticPathSample(
             x_0=x_0,
@@ -69,7 +76,7 @@ class KineticTorusProbPath(ProbPath):
             v_0=v_0,
             x_t=x_t,
             v_t=v_t,
-            dx_t=u_t_v,
+            dx_t=d if self.simplified else u_t_v,  # target displacement field or acceleration field
             dv_t=u_t_v,  # Target acceleration field u_{t, v}
             t=t,
         )

@@ -109,7 +109,10 @@ class KineticCrystalFlowGenerator(FlowGenerator):
         device = batch.pos.device
         num_graphs = getattr(batch, "num_graphs", 1)
 
-        self.solver.velocity_model = CSPANetWrapper(model=self.flow_module.vector_field_model)
+        self.solver.velocity_model = CSPANetWrapper(
+            model=self.flow_module.vector_field_model,
+            multi_flow=self.flow_module.multi_flow,
+        )
 
         t_zeros = torch.zeros(num_graphs, device=device)
         latents_0, _ = self.flow_module.multi_flow.sample_path(batch, t_zeros)

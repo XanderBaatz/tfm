@@ -7,5 +7,5 @@ num_freqs: 128
 ln: true
 pred_dv: true
 pred_dl: true
-zero_cog: true
+zero_cog: ${zero_cog}
 manifold: ${manifold}

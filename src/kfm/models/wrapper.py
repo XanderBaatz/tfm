@@ -3,10 +3,19 @@ from flow_matching.utils.model_wrapper import ModelWrapper
 from torch import Tensor
 from torch_geometric.data import Batch, Data
 
+from kfm.models.flow import MultiFlow
+from kfm.models.vector_field import VectorFieldModel
+from kfm.path.kinetic import KineticTorusProbPath
+
 
 class CSPANetWrapper(ModelWrapper):
-    def __init__(self, model: torch.nn.Module) -> None:
+    def __init__(
+        self,
+        model: VectorFieldModel,
+        multi_flow: MultiFlow | None = None,
+    ) -> None:
         super().__init__(model=model)
+        self.multi_flow = multi_flow
 
     def forward(
         self,
@@ -72,9 +81,34 @@ class CSPANetWrapper(ModelWrapper):
             **extras,
         )
 
+        dv_pred = net_out["dv"]
+
+        # 1. Dynamically locate the Kinetic path module by class type
+        kinetic_flow = None
+        if self.multi_flow is not None:
+            # Check if multi_flow contains sub-flows (nn.ModuleDict / list / iterable)
+            flows = getattr(self.multi_flow, "flows", None)
+            if flows is not None:
+                # Iterate through dict values or sequence elements
+                flow_list = flows.values() if isinstance(flows, (dict, torch.nn.ModuleDict)) else flows
+                for flow in flow_list:
+                    if isinstance(flow, KineticTorusProbPath):
+                        kinetic_flow = flow
+                        break
+            elif isinstance(self.multi_flow, KineticTorusProbPath):
+                kinetic_flow = self.multi_flow
+
+        # 2. Reconstruct parameterization (e.g. d -> acceleration v-field if simplified)
+        if kinetic_flow is not None and hasattr(kinetic_flow, "construct_prediction"):
+            dv_pred = kinetic_flow.construct_prediction(
+                pred=dv_pred,
+                t=t,
+                node_index=node_index,
+            )
+
         # 5. Construct phase-space velocity field for ODE integration
         return {
             "x": v_t,  # dx/dt = v_t (Kinematic position update)
-            "v": net_out["dv"],  # dv/dt = predicted acceleration a_t
+            "v": dv_pred,  # dv/dt = predicted acceleration a_t
             "l": net_out["dl"],  # dL/dt = predicted lattice velocity u_L_t
         }
