@@ -193,6 +193,7 @@ class ContinuousIntervalAngles(BaseTransform):
                 return {int(k): json_dict[k] for k in json_dict}
             if isinstance(json_dict, dict) and "loc" in json_dict:
                 return json_dict["loc"], json_dict["scale"]
+        return angles_loc_scale
 
 
 @functional_transform("one_hot")
