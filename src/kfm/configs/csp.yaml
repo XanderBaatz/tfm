@@ -24,7 +24,7 @@ train: true
 lr: 1e-3
 zero_cog: true
 zero_velocity: true
-simplified_parameterization: false
+simplified_parameterization: true
 layer_normalization: true
 val_every_n_epoch: 25
 # Must be a multiple of `val_every_n_epoch` so a validation pass always coincides
