@@ -16,6 +16,9 @@ dataset: "mp_20"
 tags:
   - "mp_20"
   - "csp"
+  - "simplified_param_${simplified_parameterization}"
+  - "zero_vel_${zero_velocity}"
+  - "zero_cog_${zero_cog}"
 seed: 42
 train: true
 lr: 1e-3
