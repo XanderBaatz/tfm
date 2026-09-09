@@ -55,6 +55,7 @@ class KineticTorusProbPath(ProbPath):
 
         # wrapped displacement
         d = self.manifold.logmap(x_0, x_1)  # (x_1 - x_0 + 0.5) % 1.0 - 0.5
+        # print(d.var(dim=0))
 
         # time powers
         t2 = t_exp**2
