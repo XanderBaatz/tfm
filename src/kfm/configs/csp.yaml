@@ -23,7 +23,7 @@ seed: 42
 train: true
 lr: 1e-3
 zero_cog: true
-zero_velocity: false
+zero_velocity: true
 simplified_parameterization: false
 layer_normalization: true
 val_every_n_epoch: 25
