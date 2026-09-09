@@ -26,6 +26,61 @@ class CSPMetric(Metric):
         self.matcher = StructureMatcher(ltol=ltol, stol=stol, angle_tol=angle_tol)
 
         # structure validity
+        self.add_state("valid", default=[], dist_reduce_fx=None, persistent=False)
+
+        # match rate and rmse
+        self.add_state("match", default=[], dist_reduce_fx=None, persistent=False)
+        self.add_state("rmse", default=[], dist_reduce_fx=None, persistent=False)
+
+    def update(
+        self,
+        preds: list[Structure],
+        targets: list[Structure],
+    ) -> None:
+        """Updater for metrics."""
+        assert len(preds) == len(targets)
+
+        for p, t in zip(preds, targets, strict=False):
+            v, m = 0, 0
+            if p is not None:
+                v = validity_structure(p)
+                if v:
+                    rms = self.matcher.get_rms_dist(p, t)
+                    m = int(rms is not None)
+
+                    if rms is not None:
+                        self.rmse.append(rms[0])
+
+            self.match.append(m)
+            self.valid.append(v)
+
+    def compute(self) -> dict[str, Tensor]:
+        if len(self.valid) == 0:
+            return {}
+
+        return {
+            "valid": torch.tensor(safe_divide(sum(self.valid), len(self.valid)), dtype=torch.float32),
+            "match_rate": torch.tensor(safe_divide(sum(self.match), len(self.match)), dtype=torch.float32),
+            "rmse": torch.tensor(safe_divide(sum(self.rmse), len(self.rmse)), dtype=torch.float32),
+        }
+
+
+class CSPMetricOld(Metric):
+    """Evaluates spatial RMSE and match rate using PyMatGen's StructureMatcher."""
+
+    full_state_update: bool = False
+
+    def __init__(
+        self,
+        ltol: float = 0.3,
+        stol: float = 0.5,
+        angle_tol: float = 10.0,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.matcher = StructureMatcher(ltol=ltol, stol=stol, angle_tol=angle_tol)
+
+        # structure validity
         self.add_state("valid_struct", default=[], dist_reduce_fx=None, persistent=False)
         self.add_state("valid_comp", default=[], dist_reduce_fx=None, persistent=False)
         self.add_state("valid", default=[], dist_reduce_fx=None, persistent=False)
