@@ -103,6 +103,7 @@ class KineticCrystalFlowGenerator(FlowGenerator):
         step_size: float | None = None,
         ode_method: str | None = None,
         time_grid: Tensor | None = None,
+        *,
         verbose: bool = False,
     ) -> FlowState:
         """Sample priors at t=0 and integrate the kinetic ODE up to t=1."""
