@@ -12,6 +12,7 @@ class KineticPathSample(PathSample):
         x_1 (Tensor): target spatial position X_1.
         x_0 (Tensor): source spatial position X_0.
         v_0 (Tensor): initial source velocity V_0 ~ p_0(V).
+        v_1 (Tensor): final terminal velocity V_1 ~ p_1(V).
         v_t (Tensor): velocity state V_t along the path.
         t (Tensor): time samples t.
         x_t (Tensor): position state X_t along the path.
@@ -20,6 +21,7 @@ class KineticPathSample(PathSample):
     """
 
     v_0: Tensor = field(metadata={"help": "source velocity sample V_0 ~ p_0(v), shape (batch_size, ...)."})
+    v_1: Tensor = field(metadata={"help": "target velocity sample V_1 ~ p_1(v), shape (batch_size, ...)."})
     v_t: Tensor = field(metadata={"help": "velocity sample V_t at time t, shape (batch_size, ...)."})
     dv_t: Tensor = field(metadata={"help": "target acceleration field u_{t, v} = dV_t/dt"})
 
