@@ -3,11 +3,12 @@ from flow_matching.path import ProbPath
 from flow_matching.utils import expand_tensor_like
 from torch import Tensor
 
+from kfm.nn.utils import scatter_center
 from kfm.path.path_sample import KineticPathSample
 from kfm.utils.manifolds.torus import UnitFlatTorus
 
 
-class KineticTorusProbPath(ProbPath):
+class KineticCubicProbPath(ProbPath):
     """Implements the cubic second-order Kinetic Flow Matching boundary path on Torus T^n.
 
     Satisfies the paper's cubic Hermite boundary conditions:
@@ -99,6 +100,83 @@ class KineticTorusProbPath(ProbPath):
         return pred_target
 
 
+class KineticQuinticPath(ProbPath):
+    """Quintic Kinetic Flow Path with fixed v_0 = 0 and sampled v_1."""
+
+    def __init__(
+        self,
+        manifold: UnitFlatTorus = None,
+        *,
+        simplified: bool = True,
+        zero_cog: bool = True,
+    ) -> None:
+        self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
+        self.zero_cog = zero_cog
+
+    def sample(
+        self,
+        x_0: Tensor,
+        x_1: Tensor,
+        v_0: Tensor,
+        v_1: Tensor,
+        t: Tensor,
+        node_index: Tensor | None = None,
+    ) -> KineticPathSample:
+        self.assert_sample_shape(x_0, x_1, t)
+
+        t_exp = expand_tensor_like(input_tensor=t, expand_to=x_1)
+
+        # Minimum image displacement d on unit torus
+        d = self.manifold.logmap(x_0, x_1)
+
+        if self.zero_cog and node_index is not None:
+            d = scatter_center(d, index=node_index)
+            v_0 = scatter_center(v_0, index=node_index)
+            v_1 = scatter_center(v_1, index=node_index)
+
+        t2 = t_exp**2
+        t3 = t_exp**3
+        t4 = t_exp**4
+        t5 = t_exp**5
+
+        # Polynomial bases assuming v_0 = 0 (or using full v_0 if non-zero)
+        # 1. Displacement shift omega(t)
+        omega_t = (
+            (10 * t3 - 15 * t4 + 6 * t5) * d
+            + (t_exp - 6 * t3 + 8 * t4 - 3 * t5) * v_0
+            + (-4 * t3 + 7 * t4 - 3 * t5) * v_1
+        )
+
+        # 2. Velocity path v_t = d/dt (omega_t)
+        v_t = (
+            (30 * t2 - 60 * t3 + 30 * t4) * d
+            + (1.0 - 18 * t2 + 32 * t3 - 15 * t4) * v_0
+            + (-12 * t2 + 28 * t3 - 15 * t4) * v_1
+        )
+
+        # 3. Target Acceleration field u_{t,v} = d^2/dt^2 (omega_t)
+        u_t_v = (
+            (60 * t_exp - 180 * t2 + 120 * t3) * d
+            + (-36 * t_exp + 96 * t2 - 60 * t3) * v_0
+            + (-24 * t_exp + 84 * t2 - 60 * t3) * v_1
+        )
+
+        # Update position on torus manifold
+        x_t = self.manifold.expmap(x=x_0, u=omega_t)
+
+        return KineticPathSample(
+            x_0=x_0,
+            x_1=x_1,
+            v_0=v_0,
+            v_1=v_1,
+            x_t=x_t,
+            v_t=v_t,
+            dx_t=u_t_v,
+            dv_t=u_t_v,
+            t=t,
+        )
+
+
 class KineticTorusQuinticProbPath(ProbPath):
     """Quintic C^2 smooth boundary path on Torus T^n."""
 
@@ -168,7 +246,7 @@ class KineticTorusQuinticProbPath(ProbPath):
         return pred_target
 
 
-class StochasticKineticTorusProbPath(ProbPath):
+class StochasticKineticCubicProbPath(ProbPath):
     r"""Stochastic second-order kinetic probability path on a flat torus.
 
     The path satisfies
