@@ -144,3 +144,8 @@ class SampleDatasetCSP(torchdata.Dataset):
 
     def __len__(self):
         return len(self.parsed_formulas)
+
+
+if __name__ == "__main__":
+    dataset = Dataset(path="data/mp_20/train.pt")
+    print(dataset[0])

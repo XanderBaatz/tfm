@@ -9,6 +9,77 @@ from kfm.utils.manifolds.torus import UnitFlatTorus
 
 
 class KineticCubicProbPath(ProbPath):
+    """Cubic (3rd-order) Kinetic Path on Flat Torus T^n."""
+
+    def __init__(
+        self,
+        manifold: UnitFlatTorus = None,
+        *,
+        simplified: bool = True,
+        zero_cog_v: bool = True,
+    ) -> None:
+        self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
+        self.simplified = simplified
+        self.zero_cog_v = zero_cog_v
+
+    def sample(
+        self,
+        x_0: Tensor,
+        x_1: Tensor,
+        v_0: Tensor,
+        v_1: Tensor | None = None,
+        t: Tensor = None,
+        node_index: Tensor | None = None,
+    ) -> KineticPathSample:
+        if v_1 is None:
+            v_1 = torch.zeros_like(v_0)
+
+        self.assert_sample_shape(x_0, x_1, t)
+        t_exp = expand_tensor_like(input_tensor=t, expand_to=x_1)
+
+        d = self.manifold.logmap(x_0, x_1)
+
+        if self.zero_cog_v and node_index is not None:
+            d = scatter_center(d, index=node_index)
+            v_0 = scatter_center(v_0, index=node_index)
+            v_1 = scatter_center(v_1, index=node_index)
+
+        t2 = t_exp**2
+        t3 = t_exp**3
+
+        if self.simplified:
+            omega_t = (3 * t2 - 2 * t3) * d
+            v_t = (6 * t_exp - 6 * t2) * d
+            u_t_v = (6.0 - 12.0 * t_exp) * d
+        else:
+            omega_t = (3 * t2 - 2 * t3) * d + (t_exp - 2 * t2 + t3) * v_0 + (-t2 + t3) * v_1
+            v_t = (6 * t_exp - 6 * t2) * d + (1 - 4 * t_exp + 3 * t2) * v_0 + (-2 * t_exp + 3 * t2) * v_1
+            u_t_v = (6 - 12 * t_exp) * d + (-4 + 6 * t_exp) * v_0 + (-2 + 6 * t_exp) * v_1
+
+        x_t = self.manifold.expmap(x=x_0, u=omega_t)
+
+        return KineticPathSample(
+            x_0=x_0,
+            x_1=x_1,
+            v_0=v_0,
+            v_1=v_1,
+            x_t=x_t,
+            v_t=v_t,
+            dx_t=d if self.simplified else u_t_v,
+            dv_t=u_t_v,
+            t=t,
+        )
+
+    def get_acceleration_coeff(self, t: Tensor) -> Tensor:
+        return 6.0 - 12.0 * t
+
+    def reconstruct_acceleration(self, pred_target: Tensor, t: Tensor) -> Tensor:
+        if self.simplified:
+            return self.get_acceleration_coeff(t) * pred_target
+        return pred_target
+
+
+class KineticCubicProbPathOld(ProbPath):
     """Implements the cubic second-order Kinetic Flow Matching boundary path on Torus T^n.
 
     Satisfies the paper's cubic Hermite boundary conditions:
@@ -100,36 +171,38 @@ class KineticCubicProbPath(ProbPath):
         return pred_target
 
 
-class KineticQuinticPath(ProbPath):
-    """Quintic Kinetic Flow Path with fixed v_0 = 0 and sampled v_1."""
+class KineticQuinticProbPath(ProbPath):
+    """Quintic (5th-order) C^2 smooth Kinetic Path on Flat Torus T^n."""
 
     def __init__(
         self,
         manifold: UnitFlatTorus = None,
         *,
         simplified: bool = True,
-        zero_cog: bool = True,
+        zero_cog_v: bool = True,
     ) -> None:
         self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
-        self.zero_cog = zero_cog
+        self.simplified = simplified
+        self.zero_cog_v = zero_cog_v
 
     def sample(
         self,
         x_0: Tensor,
         x_1: Tensor,
         v_0: Tensor,
-        v_1: Tensor,
-        t: Tensor,
+        v_1: Tensor | None = None,
+        t: Tensor = None,
         node_index: Tensor | None = None,
     ) -> KineticPathSample:
-        self.assert_sample_shape(x_0, x_1, t)
+        if v_1 is None:
+            v_1 = torch.zeros_like(v_0)
 
+        self.assert_sample_shape(x_0, x_1, t)
         t_exp = expand_tensor_like(input_tensor=t, expand_to=x_1)
 
-        # Minimum image displacement d on unit torus
         d = self.manifold.logmap(x_0, x_1)
 
-        if self.zero_cog and node_index is not None:
+        if self.zero_cog_v and node_index is not None:
             d = scatter_center(d, index=node_index)
             v_0 = scatter_center(v_0, index=node_index)
             v_1 = scatter_center(v_1, index=node_index)
@@ -139,29 +212,27 @@ class KineticQuinticPath(ProbPath):
         t4 = t_exp**4
         t5 = t_exp**5
 
-        # Polynomial bases assuming v_0 = 0 (or using full v_0 if non-zero)
-        # 1. Displacement shift omega(t)
-        omega_t = (
-            (10 * t3 - 15 * t4 + 6 * t5) * d
-            + (t_exp - 6 * t3 + 8 * t4 - 3 * t5) * v_0
-            + (-4 * t3 + 7 * t4 - 3 * t5) * v_1
-        )
+        if self.simplified:
+            omega_t = (10 * t3 - 15 * t4 + 6 * t5) * d
+            v_t = (30 * t2 - 60 * t3 + 30 * t4) * d
+            u_t_v = (60 * t_exp - 180 * t2 + 120 * t3) * d
+        else:
+            omega_t = (
+                (10 * t3 - 15 * t4 + 6 * t5) * d
+                + (t_exp - 6 * t3 + 8 * t4 - 3 * t5) * v_0
+                + (-4 * t3 + 7 * t4 - 3 * t5) * v_1
+            )
+            v_t = (
+                (30 * t2 - 60 * t3 + 30 * t4) * d
+                + (1 - 18 * t2 + 32 * t3 - 15 * t4) * v_0
+                + (-12 * t2 + 28 * t3 - 15 * t4) * v_1
+            )
+            u_t_v = (
+                (60 * t_exp - 180 * t2 + 120 * t3) * d
+                + (-36 * t_exp + 96 * t2 - 60 * t3) * v_0
+                + (-24 * t_exp + 84 * t2 - 60 * t3) * v_1
+            )
 
-        # 2. Velocity path v_t = d/dt (omega_t)
-        v_t = (
-            (30 * t2 - 60 * t3 + 30 * t4) * d
-            + (1.0 - 18 * t2 + 32 * t3 - 15 * t4) * v_0
-            + (-12 * t2 + 28 * t3 - 15 * t4) * v_1
-        )
-
-        # 3. Target Acceleration field u_{t,v} = d^2/dt^2 (omega_t)
-        u_t_v = (
-            (60 * t_exp - 180 * t2 + 120 * t3) * d
-            + (-36 * t_exp + 96 * t2 - 60 * t3) * v_0
-            + (-24 * t_exp + 84 * t2 - 60 * t3) * v_1
-        )
-
-        # Update position on torus manifold
         x_t = self.manifold.expmap(x=x_0, u=omega_t)
 
         return KineticPathSample(
@@ -171,10 +242,18 @@ class KineticQuinticPath(ProbPath):
             v_1=v_1,
             x_t=x_t,
             v_t=v_t,
-            dx_t=u_t_v,
+            dx_t=d if self.simplified else u_t_v,
             dv_t=u_t_v,
             t=t,
         )
+
+    def get_acceleration_coeff(self, t: Tensor) -> Tensor:
+        return 60.0 * t - 180.0 * (t**2) + 120.0 * (t**3)
+
+    def reconstruct_acceleration(self, pred_target: Tensor, t: Tensor) -> Tensor:
+        if self.simplified:
+            return self.get_acceleration_coeff(t) * pred_target
+        return pred_target
 
 
 class KineticTorusQuinticProbPath(ProbPath):

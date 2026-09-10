@@ -4,15 +4,16 @@ flows:
     _target_: kfm.models.flow.KineticFlow
     prior:
       _target_: kfm.distributions.prior.KineticPrior
-      zero_velocity: ${zero_velocity}
-      zero_cog: ${zero_cog}
+      zero_v0: ${zero_v0}
+      zero_cog_v: ${zero_cog_v}
     path:
-      _target_: kfm.path.kinetic.KineticCubicProbPath
+      #_target_: kfm.path.kinetic.KineticCubicProbPath
+      _target_: kfm.path.kinetic.KineticQuinticProbPath
       #_target_: kfm.path.kinetic.StochasticKineticCubicProbPath
       manifold: ${manifold}
       simplified: ${simplified_parameterization}
     simplified: ${simplified_parameterization}
-    zero_cog: ${zero_cog}
+    zero_cog_v: ${zero_cog_v}
 
   lattice:
     _target_: kfm.models.flow.LatticeFlow

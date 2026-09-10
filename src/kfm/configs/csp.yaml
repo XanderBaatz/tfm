@@ -17,13 +17,16 @@ tags:
   - "mp_20"
   - "csp"
   - "simplified_param_${simplified_parameterization}"
-  - "zero_vel_${zero_velocity}"
-  - "zero_cog_${zero_cog}"
+  - "zero_v0_${zero_v0}"
+  - "zero_v1_${zero_v1}"
+  - "zero_cog_v_${zero_cog_v}"
 seed: 42
 train: true
 lr: 1e-3
-zero_cog: true
-zero_velocity: true
+zero_cog_v: true
+zero_cog: ${zero_cog_v}
+zero_v0: true
+zero_v1: false
 simplified_parameterization: true
 layer_normalization: true
 val_every_n_epoch: 25

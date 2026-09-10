@@ -16,18 +16,53 @@ class BasePrior(nn.Module, ABC):
 
 
 class KineticPrior(BasePrior):
+    """Prior where v_0 = 0 and terminal velocity v_1 ~ N(0, sigma_v^2 I)."""
+
+    def __init__(
+        self,
+        sigma_v: float = 1.0,
+        *,
+        zero_v0: bool = True,
+        zero_cog_v: bool = True,
+    ) -> None:
+        super().__init__()
+        self.sigma_v = sigma_v
+        self.zero_v0 = zero_v0
+        self.zero_cog_v = zero_cog_v
+
+    def sample_like(self, batch: Batch | Data) -> dict[str, torch.Tensor]:
+        device = batch.pos.device
+        num_nodes = batch.pos.shape[0]
+        node_index = getattr(batch, "batch", None)
+
+        # 1. Uniform position prior x_0 ~ Uniform([0, 1)^3)
+        pos_0 = torch.rand_like(batch.pos, device=device)
+
+        # 2. Initial velocity v_0 = 0
+        if self.zero_v0:
+            v_0 = torch.zeros_like(batch.pos, device=device)
+        else:
+            v_0 = torch.randn((num_nodes, 3), device=device) * self.sigma_v
+            if self.zero_cog_v and node_index is not None:
+                v_0 = scatter_center(v_0, index=node_index)
+
+        return {"pos": pos_0, "v": v_0}
+
+
+class KineticPriorOld(BasePrior):
     """Prior p_0(x, v) for particle positions and velocities."""
 
     def __init__(
         self,
         sigma_v: float = 1.0,
-        zero_velocity: bool = True,
-        zero_cog: bool = True,
+        *,
+        zero_v0: bool = True,
+        zero_cog_v: bool = True,
     ) -> None:
         super().__init__()
         self.sigma_v = sigma_v
-        self.zero_velocity = zero_velocity
-        self.zero_cog = zero_cog
+        self.zero_v0 = zero_v0
+        self.zero_cog_v = zero_cog_v
 
     def sample_like(self, batch: Batch | Data) -> dict[str, torch.Tensor]:
         device = batch.pos.device
@@ -36,12 +71,12 @@ class KineticPrior(BasePrior):
         # x_0 ~ U([0,1)^3)
         pos_0 = torch.rand_like(batch.pos, device=device)
 
-        if self.zero_velocity:
+        if self.zero_v0:
             # v_0 ~ N(0, 1)
             v_0 = torch.zeros_like(batch.pos, device=device)
         else:
             v_0 = torch.randn((num_nodes, 3), device=device) * self.sigma_v
-            if self.zero_cog and hasattr(batch, "batch") and batch.batch is not None:
+            if self.zero_cog_v and hasattr(batch, "batch") and batch.batch is not None:
                 v_0 = scatter_center(v_0, index=batch.batch)
             # v_0 = torch.rand_like(batch.pos, device=device) * self.sigma_v
 
