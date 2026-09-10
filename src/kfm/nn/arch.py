@@ -138,6 +138,7 @@ class CSPANet(VectorFieldModel):
         num_layers: int = 4,
         h_dim: int = 100,
         num_freqs: int = 10,
+        *,
         ln: bool = True,
         smooth: bool = False,
         pred_h: bool = False,
