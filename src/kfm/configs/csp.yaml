@@ -27,7 +27,7 @@ zero_cog_v: true
 #zero_cog: ${zero_cog_v}
 zero_v0: true
 zero_v1: false
-simplified_parameterization: true
+simplified_parameterization: false
 layer_normalization: true
 val_every_n_epoch: 25
 # Must be a multiple of `val_every_n_epoch` so a validation pass always coincides
