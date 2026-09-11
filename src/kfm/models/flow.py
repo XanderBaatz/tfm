@@ -51,8 +51,8 @@ class KineticFlow(Flow):
         prior: BasePrior,
         path: ProbPath,
         sigma_v1: float = 1.0,
-        zero_v1: bool = True,
         *,
+        zero_v1: bool = True,
         simplified: bool = True,
         zero_cog_v: bool = True,
     ) -> None:

@@ -12,6 +12,7 @@ flows:
       #_target_: kfm.path.kinetic.StochasticKineticCubicProbPath
       manifold: ${manifold}
       simplified: ${simplified_parameterization}
+    zero_v1: ${zero_v1}
     simplified: ${simplified_parameterization}
     zero_cog_v: ${zero_cog_v}
 

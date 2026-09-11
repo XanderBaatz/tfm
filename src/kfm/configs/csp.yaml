@@ -24,7 +24,7 @@ seed: 42
 train: true
 lr: 1e-3
 zero_cog_v: true
-zero_cog: ${zero_cog_v}
+#zero_cog: ${zero_cog_v}
 zero_v0: true
 zero_v1: false
 simplified_parameterization: true

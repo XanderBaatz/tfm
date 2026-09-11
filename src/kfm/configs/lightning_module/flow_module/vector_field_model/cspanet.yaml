@@ -7,5 +7,5 @@ num_freqs: 128
 ln: ${layer_normalization}
 pred_dv: true
 pred_dl: true
-zero_cog: ${zero_cog}
+zero_cog: ${zero_cog_v}
 manifold: ${manifold}
