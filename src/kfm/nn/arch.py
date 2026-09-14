@@ -147,7 +147,7 @@ class CSPANet(VectorFieldModel):
         zero_cog: bool = True,
         time_emb: Module = None,
         manifold: UnitFlatTorus = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)

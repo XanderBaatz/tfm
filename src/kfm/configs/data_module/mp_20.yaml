@@ -51,6 +51,11 @@ batch_size:
   test: 256
 
 num_workers:
-  train: 0
-  val: 0
-  test: 0
+  train: 1
+  val: 1
+  test: 1
+
+pin_memory:
+  train: true
+  val: true
+  test: true

@@ -40,6 +40,7 @@ class CrystalDataModule(LightningDataModule):
         self,
         train_dataset: Dataset | Subset,
         num_workers: DictConfig | int,
+        pin_memory: DictConfig | int,
         batch_size: DictConfig | int,
         val_dataset: Dataset | Subset | None = None,
         test_dataset: Dataset | Subset | None = None,
@@ -52,6 +53,7 @@ class CrystalDataModule(LightningDataModule):
         """Initialize crystal dataset."""
         super().__init__()
         self.num_workers = num_workers
+        self.pin_memory = pin_memory
         self.batch_size = batch_size
 
         if num_train_subset is not None and num_train_subset > 0:
@@ -77,6 +79,7 @@ class CrystalDataModule(LightningDataModule):
             shuffle=shuffle,
             batch_size=self.batch_size.train,
             num_workers=self.num_workers.train,
+            pin_memory=self.pin_memory.train,
             worker_init_fn=worker_init_fn,
         )
 
@@ -88,6 +91,7 @@ class CrystalDataModule(LightningDataModule):
                 shuffle=shuffle,
                 batch_size=self.batch_size.val,
                 num_workers=self.num_workers.val,
+                pin_memory=self.pin_memory.val,
                 worker_init_fn=worker_init_fn,
             )
             if self.val_dataset is not None
@@ -102,6 +106,7 @@ class CrystalDataModule(LightningDataModule):
                 shuffle=shuffle,
                 batch_size=self.batch_size.test,
                 num_workers=self.num_workers.test,
+                pin_memory=self.pin_memory.test,
                 worker_init_fn=worker_init_fn,
             )
             if self.test_dataset is not None

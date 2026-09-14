@@ -1,5 +1,6 @@
 import inspect
 from abc import ABC, abstractmethod
+from typing import Literal
 
 import torch
 from flow_matching.path.path import ProbPath
@@ -247,6 +248,62 @@ class LatticeFlow(Flow):
         targets = {"dl": sample_l.dx_t}
 
         return latents, targets
+
+
+class SimplifiedLatticeFlow(Flow):
+    """Lattice Flow matching KLDM-style target prediction (x1 parameterization)."""
+
+    def __init__(
+        self,
+        prior: BasePrior,
+        path: ProbPath,
+        parameterization: Literal["x1", "dx"] = "x1",
+    ) -> None:
+        super().__init__(prior=prior, path=path)
+        self.parameterization = parameterization
+
+    def sample_path(
+        self,
+        batch: Batch | Data,
+        t: torch.Tensor,
+        state_0: dict[str, torch.Tensor] | None = None,
+    ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+        if state_0 is None:
+            state_0 = self.sample_prior(batch)
+
+        # Sample lattice along the path (e.g. CondOT or Affine path)
+        sample_l = self.path.sample(
+            x_0=state_0["l"],
+            x_1=batch.l,
+            t=t,
+        )
+
+        latents = {"l": sample_l.x_t}
+
+        if self.parameterization == "x1":
+            # Target is the ground-truth unit cell L_1 (KLDM style)
+            targets = {"l": batch.l}
+        else:
+            # Target is the vector field u_l = L_1 - L_0
+            targets = {"dl": sample_l.dx_t}
+
+        return latents, targets
+
+    def construct_prediction(
+        self,
+        pred: torch.Tensor,
+        l_t: torch.Tensor,
+        t: torch.Tensor,
+    ) -> torch.Tensor:
+        """Converts network prediction into instantaneous lattice velocity field u_l."""
+        if self.parameterization == "x1":
+            # Map target prediction L_hat_1 back to velocity u_l(t)
+            # For linear CondOT path: L_t = (1 - t)*L_0 + t*L_1 => u_l = (L_1 - L_t) / (1 - t)
+            t_exp = t.view(-1, 1) if t.ndim == 1 else t
+            eps = 1e-5
+            u_l = (pred - l_t) / (1.0 - t_exp + eps)
+            return u_l
+        return pred
 
 
 class MultiFlow(nn.Module):

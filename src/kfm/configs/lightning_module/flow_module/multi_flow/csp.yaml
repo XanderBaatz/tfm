@@ -17,8 +17,11 @@ flows:
     zero_cog_v: ${zero_cog_v}
 
   lattice:
-    _target_: kfm.models.flow.LatticeFlow
+    _target_: kfm.models.flow.SimplifiedLatticeFlow
     prior:
       _target_: kfm.distributions.prior.IsotropicLatticePrior
     path:
       _target_: flow_matching.path.CondOTProbPath
+      #_target_: flow_matching.path.AffineProbPath
+      #scheduler:
+      #  _target_: flow_matching.path.scheduler.VPScheduler
