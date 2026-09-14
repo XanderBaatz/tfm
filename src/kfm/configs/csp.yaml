@@ -26,8 +26,8 @@ train: true
 lr: 1e-3
 zero_cog_v: true
 #zero_cog: ${zero_cog_v}
-zero_v0: true
-zero_v1: false
+zero_v0: false
+zero_v1: true
 simplified_parameterization: false
 lattice_parameterization: "dx"
 layer_normalization: true
