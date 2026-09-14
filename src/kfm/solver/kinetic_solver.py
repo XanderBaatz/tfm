@@ -34,13 +34,16 @@ class KineticCrystalODESolver(Solver):
         x_init: dict[str, Tensor],
         step_size: float | None = None,
         method: str = "euler",
-        time_grid: Tensor = torch.tensor([0.0, 1.0]),
+        time_grid: Tensor | None = None,
+        *,
         return_intermediates: bool = False,
         verbose: bool = False,
         enable_grad: bool = False,
         **model_extras,
     ) -> dict[str, Tensor] | Sequence[dict[str, Tensor]]:
         """Integrates phase-space state from t=0 to t=1."""
+        time_grid = torch.tensor([0.0, 1.0]) if time_grid is None else time_grid
+
         step_fns = {
             "euler": _kinetic_euler_step,
             "midpoint": _kinetic_midpoint_step,
@@ -82,7 +85,7 @@ class KineticCrystalODESolver(Solver):
         with torch.set_grad_enabled(enable_grad):
             xt = {k: v.clone() for k, v in x_init.items()}
 
-            for t0, t1 in zip(t0s, t_discretization[1:]):
+            for t0, t1 in zip(t0s, t_discretization[1:], strict=False):
                 dt = t1 - t0
                 xt = step_fn(
                     velocity_func,
