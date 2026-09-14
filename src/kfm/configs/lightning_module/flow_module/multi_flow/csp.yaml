@@ -22,6 +22,8 @@ flows:
       _target_: kfm.distributions.prior.IsotropicLatticePrior
     path:
       _target_: flow_matching.path.CondOTProbPath
+    parameterization:
+      ${lattice_parameterization}
       #_target_: flow_matching.path.AffineProbPath
       #scheduler:
       #  _target_: flow_matching.path.scheduler.VPScheduler
