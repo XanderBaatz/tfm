@@ -20,6 +20,7 @@ tags:
   - "zero_v0_${zero_v0}"
   - "zero_v1_${zero_v1}"
   - "zero_cog_v_${zero_cog_v}"
+  - "lattice_param_${lattice_parameterization}"
 seed: 42
 train: true
 lr: 1e-3
