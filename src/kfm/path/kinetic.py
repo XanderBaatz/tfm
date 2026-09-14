@@ -31,26 +31,29 @@ class KineticCubicProbPath(ProbPath):
         t: Tensor = None,
         node_index: Tensor | None = None,
     ) -> KineticPathSample:
+        self.assert_sample_shape(x_0, x_1, t)
+
         if v_1 is None:
             v_1 = torch.zeros_like(v_0)
 
-        self.assert_sample_shape(x_0, x_1, t)
         t_exp = expand_tensor_like(input_tensor=t, expand_to=x_1)
 
+        # wrapped displacement
         d = self.manifold.logmap(x_0, x_1)
 
-        if self.zero_cog_v and node_index is not None:
-            # d = scatter_center(d, index=node_index)
-            v_0 = scatter_center(v_0, index=node_index)
-            v_1 = scatter_center(v_1, index=node_index)
+        # if self.zero_cog_v and node_index is not None:
+        # d = scatter_center(d, index=node_index)
+        #    v_0 = scatter_center(v_0, index=node_index)
+        #    v_1 = scatter_center(v_1, index=node_index)
 
+        # time powers
         t2 = t_exp**2
         t3 = t_exp**3
 
         if self.simplified:
             omega_t = (3 * t2 - 2 * t3) * d
             v_t = (6 * t_exp - 6 * t2) * d
-            u_t_v = (6.0 - 12.0 * t_exp) * d
+            u_t_v = (6 - 12 * t_exp) * d
             dx_t = d
         else:
             omega_t = (3 * t2 - 2 * t3) * d + (t_exp - 2 * t2 + t3) * v_0 + (-t2 + t3) * v_1
@@ -58,10 +61,10 @@ class KineticCubicProbPath(ProbPath):
             u_t_v = (6 - 12 * t_exp) * d + (-4 + 6 * t_exp) * v_0 + (-2 + 6 * t_exp) * v_1
             dx_t = u_t_v
 
-        if self.zero_cog_v and node_index is not None:
-            v_t = scatter_center(v_t, index=node_index)
-            u_t_v = scatter_center(u_t_v, index=node_index)
-            dx_t = scatter_center(dx_t, index=node_index)
+        # if self.zero_cog_v and node_index is not None:
+        #    v_t = scatter_center(v_t, index=node_index)
+        #    u_t_v = scatter_center(u_t_v, index=node_index)
+        #    dx_t = scatter_center(dx_t, index=node_index)
 
         x_t = self.manifold.expmap(x=x_0, u=omega_t)
 
