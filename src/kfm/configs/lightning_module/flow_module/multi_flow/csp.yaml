@@ -7,7 +7,8 @@ flows:
       zero_v0: ${zero_v0}
       zero_cog_v: ${zero_cog_v}
     path:
-      _target_: kfm.path.kinetic.KineticCubicProbPath
+      #_target_: kfm.path.kinetic.KineticCubicProbPath
+      _target_: kfm.path.kinetic.KineticUnderdampedProbPath
       #_target_: kfm.path.kinetic.KineticQuinticProbPath
       #_target_: kfm.path.kinetic.StochasticKineticCubicProbPath
       manifold: ${manifold}

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import torch
 from flow_matching.path import ProbPath
 from flow_matching.utils import expand_tensor_like
@@ -6,6 +8,139 @@ from torch import Tensor
 from kfm.nn.utils import scatter_center
 from kfm.path.path_sample import KineticPathSample
 from kfm.utils.manifolds.torus import UnitFlatTorus
+
+
+@dataclass
+class KineticSchedulerOutput:
+    """Scalar coefficients and time derivatives for underdamped kinetic paths."""
+
+    A_t: Tensor
+    dA_t: Tensor
+    ddA_t: Tensor
+    B_t: Tensor
+    dB_t: Tensor
+    ddB_t: Tensor
+
+
+class KineticUnderdampedScheduler:
+    """Underdamped Langevin scalar coefficient scheduler."""
+
+    def __init__(self, gamma: float = 2.0):
+        self.gamma = float(gamma)
+
+    def __call__(self, t: Tensor) -> KineticSchedulerOutput:
+        gamma = self.gamma
+        eps = 1e-5
+
+        if abs(gamma) < eps:
+            # Parabolic limit (gamma -> 0)
+            B_t = t**2
+            dB_t = 2.0 * t
+            ddB_t = 2.0 * torch.ones_like(t)
+
+            A_t = t - t**2
+            dA_t = 1.0 - 2.0 * t
+            ddA_t = -2.0 * torch.ones_like(t)
+            return KineticSchedulerOutput(A_t, dA_t, ddA_t, B_t, dB_t, ddB_t)
+
+        exp_g = torch.exp(torch.tensor(-gamma, dtype=t.dtype, device=t.device))
+        exp_gt = torch.exp(-gamma * t)
+        denom = gamma - (1.0 - exp_g)
+
+        # Coefficient B(t) for displacement d
+        B_t = (gamma * t - (1.0 - exp_gt)) / denom
+        dB_t = (gamma - gamma * exp_gt) / denom
+        ddB_t = (gamma**2 * exp_gt) / denom
+
+        # Coefficient A(t) for initial velocity v_0
+        factor = (1.0 - exp_g) / gamma
+        A_t = (1.0 - exp_gt) / gamma - factor * B_t
+        dA_t = exp_gt - factor * dB_t
+        ddA_t = -gamma * exp_gt - factor * ddB_t
+
+        return KineticSchedulerOutput(A_t, dA_t, ddA_t, B_t, dB_t, ddB_t)
+
+
+class KineticUnderdampedProbPath(ProbPath):
+    """Exact Underdamped Langevin Kinetic Path on Flat Torus T^n."""
+
+    def __init__(
+        self,
+        scheduler: KineticUnderdampedScheduler = None,
+        manifold=None,
+        *,
+        gamma: float = 2.0,
+        simplified: bool = True,
+        zero_cog_v: bool = True,
+    ) -> None:
+        self.scheduler = scheduler if scheduler is not None else KineticUnderdampedScheduler(gamma=gamma)
+        self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
+        self.simplified = simplified
+        self.zero_cog_v = zero_cog_v
+
+    def sample(
+        self,
+        x_0: Tensor,
+        x_1: Tensor,
+        v_0: Tensor,
+        v_1: Tensor | None = None,
+        t: Tensor = None,
+        node_index: Tensor | None = None,
+    ) -> KineticPathSample:
+        self.assert_sample_shape(x_0, x_1, t)
+
+        if v_1 is None:
+            v_1 = torch.zeros_like(v_0)
+
+        sched = self.scheduler(t)
+
+        A_t = expand_tensor_like(sched.A_t, expand_to=x_1)
+        dA_t = expand_tensor_like(sched.dA_t, expand_to=x_1)
+        ddA_t = expand_tensor_like(sched.ddA_t, expand_to=x_1)
+
+        B_t = expand_tensor_like(sched.B_t, expand_to=x_1)
+        dB_t = expand_tensor_like(sched.dB_t, expand_to=x_1)
+        ddB_t = expand_tensor_like(sched.ddB_t, expand_to=x_1)
+
+        # Geodesic wrapped displacement in Lie algebra \mathfrak{t}
+        d = self.manifold.logmap(x_0, x_1)
+
+        if self.simplified:
+            omega_t = B_t * d
+            v_t = dB_t * d
+            u_t_v = ddB_t * d
+            dx_t = v_t
+        else:
+            omega_t = A_t * v_0 + B_t * d
+            v_t = dA_t * v_0 + dB_t * d
+            u_t_v = ddA_t * v_0 + ddB_t * d
+            dx_t = v_t
+
+        x_t = self.manifold.expmap(x=x_0, u=omega_t)
+
+        return KineticPathSample(
+            x_0=x_0,
+            x_1=x_1,
+            v_0=v_0,
+            v_1=v_1,
+            x_t=x_t,
+            v_t=v_t,
+            dx_t=dx_t,  # Exact dx/dt = v_t coupling
+            dv_t=u_t_v,  # Target acceleration field
+            t=t,
+        )
+
+    def get_acceleration_coeff(self, t: Tensor) -> Tensor:
+        """Return the multiplier B''(t) converting target displacement d into acceleration u_{t,v}."""
+        sched = self.scheduler(t)
+        return sched.ddB_t
+
+    def reconstruct_acceleration(self, pred_target: Tensor, t: Tensor) -> Tensor:
+        r"""Convert model prediction (e.g., \hat{d}) into target acceleration u_{t,v}."""
+        if self.simplified:
+            multiplier = expand_tensor_like(self.get_acceleration_coeff(t), expand_to=pred_target)
+            return multiplier * pred_target
+        return pred_target
 
 
 class KineticCubicProbPath(ProbPath):
