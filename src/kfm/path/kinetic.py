@@ -176,8 +176,8 @@ class KineticCubicProbPath(ProbPath):
         # wrapped displacement
         d = self.manifold.logmap(x_0, x_1)
 
-        # if self.zero_cog_v and node_index is not None:
-        # d = scatter_center(d, index=node_index)
+        if self.zero_cog_v and node_index is not None:
+            d = scatter_center(d, index=node_index)
         #    v_0 = scatter_center(v_0, index=node_index)
         #    v_1 = scatter_center(v_1, index=node_index)
 
