@@ -177,9 +177,8 @@ class KineticCubicProbPath(ProbPath):
         d = self.manifold.logmap(x_0, x_1)
 
         if self.zero_cog_v and node_index is not None:
+            # ensure d is centered since it's a linear-combination of v_0 and v_1, which are also centered
             d = scatter_center(d, index=node_index)
-        #    v_0 = scatter_center(v_0, index=node_index)
-        #    v_1 = scatter_center(v_1, index=node_index)
 
         # time powers
         t2 = t_exp**2
@@ -195,11 +194,6 @@ class KineticCubicProbPath(ProbPath):
             v_t = (6 * t_exp - 6 * t2) * d + (1 - 4 * t_exp + 3 * t2) * v_0 + (-2 * t_exp + 3 * t2) * v_1
             u_t_v = (6 - 12 * t_exp) * d + (-4 + 6 * t_exp) * v_0 + (-2 + 6 * t_exp) * v_1
             dx_t = u_t_v
-
-        # if self.zero_cog_v and node_index is not None:
-        #    v_t = scatter_center(v_t, index=node_index)
-        #    u_t_v = scatter_center(u_t_v, index=node_index)
-        #    dx_t = scatter_center(dx_t, index=node_index)
 
         x_t = self.manifold.expmap(x=x_0, u=omega_t)
 
