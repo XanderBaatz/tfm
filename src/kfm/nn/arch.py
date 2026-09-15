@@ -24,15 +24,20 @@ class CSPALayer(Module):
         *,
         act_fn: Module | None = None,
         ln: bool = False,
+        abs_node_v_emb: bool = False,
     ) -> None:
         """Initialize CSPALayer."""
         super().__init__()
         self.dis_emb = dis_emb
         self.dis_dim = dis_emb.dim
         act_fn = nn.SiLU() if act_fn is None else act_fn
+        self.abs_node_v_emb = abs_node_v_emb  # absolute node velocity embedding
 
         # Input: h_i, h_j, l_edge (6), v_ij (dis_dim), pos_diff (dis_dim)
-        input_dim = hidden_dim * 2 + 2 * self.dis_dim + 6  # hidden states + distance/velocity + lattice
+        if self.abs_node_v_emb:
+            input_dim = hidden_dim * 2 + 6 + (self.dis_dim * 4)
+        else:
+            input_dim = hidden_dim * 2 + 2 * self.dis_dim + 6  # hidden states + distance/velocity + lattice
 
         self.v_proj = nn.Linear(3, self.dis_dim)
 
@@ -67,13 +72,22 @@ class CSPALayer(Module):
         vi, vj = v[edge_node_index[0]], v[edge_node_index[1]]
 
         # Linear projection of relative velocity \bm{v}_j - \bm{v}_i
-        vij = self.v_proj(vj - vi)
+        # and absolute node velocity embedding (should give extra info)
+        if self.abs_node_v_emb:
+            vi_emb = self.v_proj(vi)
+            vj_emb = self.v_proj(vj)
+            vij_emb = self.v_proj(vj - vi)
+        else:
+            vij = self.v_proj(vj - vi)
 
         # Sine/Cosine Fourier embedding on torus-wrapped periodic distance \bm{d}
         pos_diff_emb = self.dis_emb(pos_diff)
         l_edge = lattices[edge_graph_index]
 
-        edges_input = torch.cat([hi, hj, l_edge, vij, pos_diff_emb], dim=1)
+        if self.abs_node_v_emb:
+            edges_input = torch.cat([hi, hj, l_edge, vi_emb, vj_emb, vij_emb, pos_diff_emb], dim=1)
+        else:
+            edges_input = torch.cat([hi, hj, l_edge, vij, pos_diff_emb], dim=1)
 
         return self.edge_mlp(edges_input)  # edge features
 
@@ -147,12 +161,15 @@ class CSPANet(VectorFieldModel):
         zero_cog: bool = True,
         time_emb: Module = None,
         manifold: UnitFlatTorus = None,
+        abs_node_v_emb: bool = False,
     ) -> None:
         super().__init__()
 
         self.manifold = manifold if manifold is not None else UnitFlatTorus(scale=1.0)
 
         self.act_fn = nn.SiLU()
+
+        self.abs_node_v_emb = abs_node_v_emb
 
         if smooth:
             self.node_embedding = nn.Linear(h_dim, hidden_dim, bias=False)
@@ -167,7 +184,12 @@ class CSPANet(VectorFieldModel):
         self.time_emb = time_emb
 
         self.layers = nn.ModuleList(
-            [CSPALayer(self.dis_emb, hidden_dim=hidden_dim, act_fn=self.act_fn, ln=ln) for _ in range(num_layers)]
+            [
+                CSPALayer(
+                    self.dis_emb, hidden_dim=hidden_dim, act_fn=self.act_fn, ln=ln, abs_node_v_emb=self.abs_node_v_emb
+                )
+                for _ in range(num_layers)
+            ]
         )
 
         if ln:

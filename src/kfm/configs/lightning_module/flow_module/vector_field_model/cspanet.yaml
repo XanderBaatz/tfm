@@ -9,3 +9,4 @@ pred_dv: true
 pred_dl: true
 zero_cog: ${zero_cog_v}
 manifold: ${manifold}
+abs_node_v_emb: ${abs_node_v_emb}
