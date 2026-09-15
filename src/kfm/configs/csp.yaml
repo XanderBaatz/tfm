@@ -29,7 +29,7 @@ zero_cog_v: true
 zero_v0: false
 zero_v1: true
 simplified_parameterization: false
-lattice_parameterization: "dx"
+lattice_parameterization: "x1"
 layer_normalization: true
 abs_node_v_emb: false
 val_every_n_epoch: 25
